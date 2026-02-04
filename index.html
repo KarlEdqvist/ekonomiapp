@@ -28,32 +28,60 @@
     "McDonalds": "Restaurang"
   };
 
-  function processData() {
-    const raw = document.getElementById("rawInput").value;
-    const lines = raw.split("\n");
+ function processData() {
+  const raw = document.getElementById("rawInput").value.trim();
+  if (!raw) return;
 
-    let results = [];
+  const lines = raw.split("\n");
+  let results = [];
 
-    for (let line of lines) {
-      if (!line.trim()) continue;
+  for (let line of lines) {
+    if (!line.trim()) continue;
 
-      // Förenklad parsing – vi kan göra den mer robust senare
-      const parts = line.split("\t");
+    // Hantera CSV-rader korrekt (komma-separerade)
+    // Delar med stöd för citattecken
+    const parts = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
 
-      const date = parts[0];
-      const text = parts[1] || "";
-      const amount = parseFloat(parts[2] || 0);
+    if (!parts) continue;
 
-      // Kategorisering
-      let category = "Okänd";
-      for (let key in rules) {
-        if (text.includes(key)) {
-          category = rules[key];
-        }
+    /* Exempelstruktur:
+       0: ID
+       1: ? (kan vara saldo eller något bankinternt nummer)
+       2: konto
+       3: "Privatkonto"
+       4: valuta
+       5: bokföringsdatum
+       6: transaktionsdatum
+       7: värdedatum
+       8: referens
+       9: transaktionstext
+       10: belopp
+       11: saldo
+    */
+
+    const date = parts[5] || "";
+    const text = parts[9]?.replace(/"/g, "") || "";
+    const amount = parseFloat((parts[10] || "0").replace(",", "."));
+
+    // REGEL-baserad matchning
+    let category = "Okänd";
+    for (let key in ruleCategories) {
+      if (text.toUpperCase().includes(key)) {
+        category = ruleCategories[key];
       }
-
-      results.push({ date, text, amount, category });
     }
+
+    // AI-gissning
+    if (category === "Okänd") {
+      category = aiGuessCategory(text);
+    }
+
+    results.push({ date, text, amount, category });
+  }
+
+  displayResults(results);
+}
+``
 
     // Visa resultat
     let html = "<h2>Resultat</h2><ul>";
@@ -68,4 +96,5 @@
 </script>
 
 </body>
+
 </html>
