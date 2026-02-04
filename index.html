@@ -1,100 +1,215 @@
 <!DOCTYPE html>
-<html>
+<html lang="sv">
 <head>
   <meta charset="UTF-8" />
-  <title>Ekonomiapp</title>
+  <title>Ekonomiapp – AI-kategorisering</title>
+
   <style>
-    body { font-family: Arial; margin: 40px; }
-    textarea { width: 100%; height: 200px; }
-    .result { margin-top: 20px; }
+    body { 
+      font-family: Arial, sans-serif; 
+      margin: 40px; 
+      max-width: 900px; 
+      line-height: 1.6;
+    }
+
+    textarea { 
+      width: 100%; 
+      height: 200px; 
+      font-family: monospace;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      margin-top: 10px;
+      padding: 10px 18px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      background: #2b7cff;
+      color: white;
+      border-radius: 6px;
+    }
+
+    #loginBox {
+      padding: 20px;
+      background: #f0f0f0;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    #appContent {
+      display: none;
+    }
+
+    .result {
+      margin-top: 30px;
+      padding: 20px;
+      background: #f8f8f8;
+      border-radius: 8px;
+    }
+
+    .category {
+      font-weight: bold;
+      color: #444;
+    }
+
+    ul li {
+      margin-bottom: 10px;
+    }
   </style>
 </head>
+
 <body>
-  <h1>Ekonomiöversikt</h1>
 
-  <p>Klistra in ditt kontoutdrag här:</p>
-  <textarea id="rawInput"></textarea>
-  <button onclick="processData()">Bearbeta</button>
+  <!-- 🔒 LOGIN BOX -->
+  <div id="loginBox">
+    <h2>Logga in</h2>
+    <p>Ange lösenord för att öppna appen:</p>
+    <input type="password" id="pwInput" style="padding:6px; width:200px;">
+    <button onclick="checkPassword()">Logga in</button>
+    <p id="pwError" style="color:red; display:none;">Fel lösenord – försök igen.</p>
+  </div>
 
-  <div class="result" id="result"></div>
+  <!-- 🌟 APP -->
+  <div id="appContent">
 
-<script>
-  // Exempel på kategoriregler
-  const rules = {
-    "ICA": "Livsmedel",
-    "Coop": "Livsmedel",
-    "Hemnet": "Boende",
-    "Uber Eats": "Restaurang",
-    "McDonalds": "Restaurang"
-  };
+    <h1>Ekonomiöversikt – med AI‑kategorisering</h1>
 
- function processData() {
-  const raw = document.getElementById("rawInput").value.trim();
-  if (!raw) return;
+    <p>Klistra in dina kontoutdrag här (CSV-format från banken):</p>
 
-  const lines = raw.split("\n");
-  let results = [];
+    <textarea id="rawInput"></textarea>
 
-  for (let line of lines) {
-    if (!line.trim()) continue;
+    <button onclick="processData()">Bearbeta</button>
 
-    // Hantera CSV-rader korrekt (komma-separerade)
-    // Delar med stöd för citattecken
-    const parts = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+    <div id="result" class="result"></div>
 
-    if (!parts) continue;
+  </div>
 
-    /* Exempelstruktur:
-       0: ID
-       1: ? (kan vara saldo eller något bankinternt nummer)
-       2: konto
-       3: "Privatkonto"
-       4: valuta
-       5: bokföringsdatum
-       6: transaktionsdatum
-       7: värdedatum
-       8: referens
-       9: transaktionstext
-       10: belopp
-       11: saldo
-    */
 
-    const date = parts[5] || "";
-    const text = parts[9]?.replace(/"/g, "") || "";
-    const amount = parseFloat((parts[10] || "0").replace(",", "."));
+  <script>
+    /* ------------------------------
+       🔐 LÖSENORDSSKYDD
+    ------------------------------ */
+    const correctPassword = "hemligt"; // ← ÄNDRA LÖSENORDET HÄR
 
-    // REGEL-baserad matchning
-    let category = "Okänd";
-    for (let key in ruleCategories) {
-      if (text.toUpperCase().includes(key)) {
-        category = ruleCategories[key];
+    function checkPassword() {
+      const pw = document.getElementById("pwInput").value;
+      if (pw === correctPassword) {
+        document.getElementById("loginBox").style.display = "none";
+        document.getElementById("appContent").style.display = "block";
+      } else {
+        document.getElementById("pwError").style.display = "block";
       }
     }
 
-    // AI-gissning
-    if (category === "Okänd") {
-      category = aiGuessCategory(text);
+
+    /* --------------------------------------
+       📁 REGLER FÖR KATEGORISERING (manuell)
+    -------------------------------------- */
+    const ruleCategories = {
+      "ICA": "Livsmedel",
+      "COOP": "Livsmedel",
+      "WILLYS": "Livsmedel",
+      "HEMNET": "Boende",
+      "HYRA": "Boende",
+      "MCDONALD": "Restaurang",
+      "BURGER KING": "Restaurang",
+      "UBER EATS": "Restaurang",
+      "ELGIGANTEN": "Elektronik",
+      "NETONNET": "Elektronik"
+    };
+
+
+    /* ------------------------------
+       🤖 ENKEL AI-KATEGORISERING
+    ------------------------------ */
+    function aiGuessCategory(text) {
+      const lower = text.toLowerCase();
+
+      const aiRules = [
+        { keywords: ["ica", "coop", "mat", "willys", "hemköp"], category: "Livsmedel" },
+        { keywords: ["hyra", "hemnet", "bostad", "lån"], category: "Boende" },
+        { keywords: ["restaurang", "eats", "pizza", "krog", "pub"], category: "Restaurang" },
+        { keywords: ["elgiganten", "netonnet", "media"], category: "Elektronik" },
+        { keywords: ["sl", "flyg", "tåg", "uber", "taxi"], category: "Transport" }
+      ];
+
+      for (let rule of aiRules) {
+        for (let kw of rule.keywords) {
+          if (lower.includes(kw)) {
+            return rule.category;
+          }
+        }
+      }
+      return "Okänd";
     }
 
-    results.push({ date, text, amount, category });
-  }
 
-  displayResults(results);
-}
-``
+    /* ------------------------------
+       🧠 HUVUDFUNKTION – CSV parser
+    ------------------------------ */
+    function processData() {
+      const raw = document.getElementById("rawInput").value.trim();
+      if (!raw) return;
 
-    // Visa resultat
-    let html = "<h2>Resultat</h2><ul>";
+      const lines = raw.split("\n");
+      let results = [];
 
-    results.forEach(r => {
-      html += `<li>${r.date}: ${r.text} — ${r.amount} kr (${r.category})</li>`;
-    });
+      for (let line of lines) {
+        if (!line.trim()) continue;
 
-    html += "</ul>";
-    document.getElementById("result").innerHTML = html;
-  }
-</script>
+        // Matcha CSV korrekt: hanterar citattecken
+        const parts = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+
+        if (!parts) continue;
+
+        const date = parts[5] || "";
+        const text = parts[9]?.replace(/"/g, "") || "";
+        const amount = parseFloat((parts[10] || "0").replace(",", "."));
+
+        // REGEL-baserad
+        let category = "Okänd";
+        for (let key in ruleCategories) {
+          if (text.toUpperCase().includes(key)) {
+            category = ruleCategories[key];
+          }
+        }
+
+        // AI-gissning
+        if (category === "Okänd") {
+          category = aiGuessCategory(text);
+        }
+
+        results.push({ date, text, amount, category });
+      }
+
+      displayResults(results);
+    }
+
+
+    /* ------------------------------
+       📊 VISA RESULTAT
+    ------------------------------ */
+    function displayResults(transactions) {
+      let html = `<h2>Resultat</h2>`;
+      html += `<ul>`;
+
+      transactions.forEach(t => {
+        html += `
+          <li>
+            <strong>${t.date}</strong> — ${t.text} — ${t.amount} kr
+            <br><span class="category">Kategori: ${t.category}</span>
+          </li><br>
+        `;
+      });
+
+      html += `</ul>`;
+      document.getElementById("result").innerHTML = html;
+    }
+
+  </script>
 
 </body>
-
 </html>
