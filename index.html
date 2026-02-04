@@ -223,6 +223,21 @@
          9 = beskrivning ("Överföring via internet", "Viaplay", "Insättning")
         10 = belopp (negativt/positivt)
     ------------------------------ */
+
+function identifyPerson(ref, desc, amount) {
+  if (amount <= 0) return null;
+
+  const upperRef = ref.toUpperCase();
+
+  if (upperRef.startsWith("816959")) {
+    return "Karl";
+  }
+
+  return "Sambo";
+}
+
+
+}  
     function processData() {
       const raw = document.getElementById("rawInput").value.trim();
       if (!raw) return;
@@ -355,3 +370,4 @@
   </script>
 </body>
 </html>
+
