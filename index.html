@@ -5,22 +5,20 @@
   <title>Ekonomiapp – AI-kategorisering</title>
 
   <style>
-    body { 
-      font-family: Arial, sans-serif; 
-      margin: 40px; 
-      max-width: 900px; 
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      max-width: 960px;
       line-height: 1.6;
     }
-
-    textarea { 
-      width: 100%; 
-      height: 200px; 
-      font-family: monospace;
+    textarea {
+      width: 100%;
+      height: 220px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
       padding: 10px;
       border-radius: 6px;
       border: 1px solid #ccc;
     }
-
     button {
       margin-top: 10px;
       padding: 10px 18px;
@@ -31,68 +29,93 @@
       color: white;
       border-radius: 6px;
     }
-
     #loginBox {
       padding: 20px;
       background: #f0f0f0;
       border-radius: 8px;
       margin-bottom: 20px;
     }
-
-    #appContent {
-      display: none;
-    }
-
+    #appContent { display: none; }
     .result {
       margin-top: 30px;
       padding: 20px;
       background: #f8f8f8;
       border-radius: 8px;
     }
-
-    .category {
-      font-weight: bold;
-      color: #444;
+    .category { font-weight: bold; color: #444; }
+    ul li { margin-bottom: 10px; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      align-items: start;
     }
-
-    ul li {
-      margin-bottom: 10px;
+    @media (max-width: 800px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #eee;
+      text-align: left;
+      font-size: 14px;
+    }
+    th { background: #f3f6ff; font-weight: 600; }
+    tfoot td { font-weight: 600; }
+    .neg { color: #b00020; }
+    .pos { color: #007a2f; }
+    .muted { color: #666; }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #eef1ff;
+      color: #2b3a8f;
+      font-size: 12px;
     }
   </style>
 </head>
 
 <body>
-
   <!-- 🔒 LOGIN BOX -->
   <div id="loginBox">
     <h2>Logga in</h2>
     <p>Ange lösenord för att öppna appen:</p>
-    <input type="password" id="pwInput" style="padding:6px; width:200px;">
+    <input type="password" id="pwInput" style="padding:6px; width:220px;">
     <button onclick="checkPassword()">Logga in</button>
     <p id="pwError" style="color:red; display:none;">Fel lösenord – försök igen.</p>
   </div>
 
   <!-- 🌟 APP -->
   <div id="appContent">
-
     <h1>Ekonomiöversikt – med AI‑kategorisering</h1>
 
-    <p>Klistra in dina kontoutdrag här (CSV-format från banken):</p>
+    <p class="muted">
+      Klistra in dina kontoutdrag här (CSV-rader från banken, t.ex.:
+      <code>…,2026-02-04,"Viaplay","Viaplay",-169.00,…</code>).
+      Appen tolkar automatiskt datum, text och belopp.
+    </p>
 
     <textarea id="rawInput"></textarea>
-
     <button onclick="processData()">Bearbeta</button>
 
-    <div id="result" class="result"></div>
-
+    <div class="grid">
+      <div id="result" class="result"></div>
+      <div id="summary" class="result"></div>
+    </div>
   </div>
-
 
   <script>
     /* ------------------------------
        🔐 LÖSENORDSSKYDD
     ------------------------------ */
-    const correctPassword = "hemligt"; // ← ÄNDRA LÖSENORDET HÄR
+    const correctPassword = "Mayo2024"; // ← ÄNDRA LÖSENORDET HÄR
 
     function checkPassword() {
       const pw = document.getElementById("pwInput").value;
@@ -104,112 +127,231 @@
       }
     }
 
-
     /* --------------------------------------
        📁 REGLER FÖR KATEGORISERING (manuell)
+       (case-insensitive match på referens+beskrivning)
     -------------------------------------- */
     const ruleCategories = {
+      // Livsmedel
       "ICA": "Livsmedel",
       "COOP": "Livsmedel",
       "WILLYS": "Livsmedel",
-      "HEMNET": "Boende",
+      "HEMKÖP": "Livsmedel",
+      "LIDL": "Livsmedel",
+
+      // Boende
       "HYRA": "Boende",
+      "HEMNET": "Boende",
+      "MÄKLARARVODE": "Boende",
+
+      // Streaming/abonnemang
+      "VIAPLAY": "Abonnemang",
+      "SPOTIFY": "Abonnemang",
+      "NETFLIX": "Abonnemang",
+      "HBO": "Abonnemang",
+      "DISNEY": "Abonnemang",
+      "YOUTUBE PREMIUM": "Abonnemang",
+
+      // Restaurang/Kafé
       "MCDONALD": "Restaurang",
       "BURGER KING": "Restaurang",
-      "UBER EATS": "Restaurang",
-      "ELGIGANTEN": "Elektronik",
-      "NETONNET": "Elektronik"
-    };
+      "MAX HAMBURGARE": "Restaurang",
+      "SUSHI": "Restaurang",
+      "ESPRESSO HOUSE": "Restaurang",
+      "STARBUCKS": "Restaurang",
 
+      // Transport
+      "SL": "Transport",
+      "UBER": "Transport",
+      "BOLT": "Transport",
+      "SJ": "Transport",
+      "TAXI": "Transport",
+
+      // Elektronik
+      "ELGIGANTEN": "Elektronik",
+      "NETONNET": "Elektronik",
+      "KJELL": "Elektronik",
+
+      // Bankhändelser
+      "ÖVERFÖRING": "Överföring",
+      "INSÄTTNING": "Inkomst",
+      "UTTAG": "Överföring",
+      "AUTOGIRO": "Autogiro"
+    };
 
     /* ------------------------------
        🤖 ENKEL AI-KATEGORISERING
+       (breddade svenska nyckelord)
     ------------------------------ */
     function aiGuessCategory(text) {
-      const lower = text.toLowerCase();
+      const lower = normalizeText(text);
 
       const aiRules = [
-        { keywords: ["ica", "coop", "mat", "willys", "hemköp"], category: "Livsmedel" },
-        { keywords: ["hyra", "hemnet", "bostad", "lån"], category: "Boende" },
-        { keywords: ["restaurang", "eats", "pizza", "krog", "pub"], category: "Restaurang" },
-        { keywords: ["elgiganten", "netonnet", "media"], category: "Elektronik" },
-        { keywords: ["sl", "flyg", "tåg", "uber", "taxi"], category: "Transport" }
+        { keywords: ["ica","coop","willys","hemköp","lidl","mat","livsmedel","handla"], category: "Livsmedel" },
+        { keywords: ["hyra","hemnet","bostad","avgift","elräkning","vatten","värme"], category: "Boende" },
+        { keywords: ["restaurang","krog","pub","pizza","sushi","kafé","cafe","espresso","bar"], category: "Restaurang" },
+        { keywords: ["elgiganten","netonnet","kjell","webhallen","media markt"], category: "Elektronik" },
+        { keywords: ["sl","uber","bolt","taxi","sj","tåg","flyg","buss","parkering"], category: "Transport" },
+        { keywords: ["viaplay","netflix","spotify","hbo","disney","youtube premium","storytel"], category: "Abonnemang" },
+        { keywords: ["insättning","lön","salary","utbetalning","swish från"], category: "Inkomst" },
+        { keywords: ["överföring","överfört","transfer","swish till"], category: "Överföring" },
+        { keywords: ["apotek","läkare","vårdcentral","tandläkare"], category: "Hälsa" },
+        { keywords: ["ikea","jysk","möbel","plantagen"], category: "Hem & Inredning" }
       ];
 
-      for (let rule of aiRules) {
-        for (let kw of rule.keywords) {
-          if (lower.includes(kw)) {
-            return rule.category;
-          }
+      for (const rule of aiRules) {
+        for (const kw of rule.keywords) {
+          if (lower.includes(kw)) return rule.category;
         }
       }
       return "Okänd";
     }
 
+    // Normalisera text: lower‑case + ta bort diakritik
+    function normalizeText(s) {
+      return (s || "")
+        .toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // åäö -> aao för robust matchning
+    }
 
     /* ------------------------------
        🧠 HUVUDFUNKTION – CSV parser
+       (stöd för din kolumnlayout)
+       index:
+         5 = bokföringsdatum
+         8 = referens (kan vara tomt eller t.ex. "Viaplay")
+         9 = beskrivning ("Överföring via internet", "Viaplay", "Insättning")
+        10 = belopp (negativt/positivt)
     ------------------------------ */
     function processData() {
       const raw = document.getElementById("rawInput").value.trim();
       if (!raw) return;
 
-      const lines = raw.split("\n");
-      let results = [];
+      const lines = raw.split(/\r?\n/);
+      const transactions = [];
 
-      for (let line of lines) {
+      for (const line of lines) {
         if (!line.trim()) continue;
 
-        // Matcha CSV korrekt: hanterar citattecken
+        // CSV-split som hanterar citattecken runt fält
         const parts = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+        if (!parts || parts.length < 11) continue;
 
-        if (!parts) continue;
+        const date = (parts[5] || "").replace(/"/g, "");
+        const ref = (parts[8] || "").replace(/"/g, "");
+        const desc = (parts[9] || "").replace(/"/g, "");
+        const text = [ref, desc].filter(Boolean).join(" — "); // kombinera för bättre matchning
+        const amount = parseFloat(String(parts[10] || "0").replace(",", "."));
 
-        const date = parts[5] || "";
-        const text = parts[9]?.replace(/"/g, "") || "";
-        const amount = parseFloat((parts[10] || "0").replace(",", "."));
-
-        // REGEL-baserad
+        // REGEL-baserad (case-insensitive mot både ref och desc)
         let category = "Okänd";
-        for (let key in ruleCategories) {
-          if (text.toUpperCase().includes(key)) {
+        const textUpper = (ref + " " + desc).toUpperCase();
+
+        for (const key in ruleCategories) {
+          if (textUpper.includes(key)) {
             category = ruleCategories[key];
+            break;
           }
         }
 
-        // AI-gissning
+        // AI-gissning om inget träffar
         if (category === "Okänd") {
           category = aiGuessCategory(text);
         }
 
-        results.push({ date, text, amount, category });
+        transactions.push({ date, text, amount, category });
       }
 
-      displayResults(results);
+      displayResults(transactions);
+      displaySummary(transactions);
     }
 
-
     /* ------------------------------
-       📊 VISA RESULTAT
+       📊 VISA RESULTAT – tabell
     ------------------------------ */
     function displayResults(transactions) {
-      let html = `<h2>Resultat</h2>`;
-      html += `<ul>`;
+      if (!transactions.length) {
+        document.getElementById("result").innerHTML = "<em>Inga transaktioner hittades.</em>";
+        return;
+      }
 
-      transactions.forEach(t => {
-        html += `
-          <li>
-            <strong>${t.date}</strong> — ${t.text} — ${t.amount} kr
-            <br><span class="category">Kategori: ${t.category}</span>
-          </li><br>
-        `;
-      });
+      let rows = transactions.map(t => `
+        <tr>
+          <td>${t.date}</td>
+          <td>${t.text || "<span class='muted'>—</span>"}</td>
+          <td><span class="pill">${t.category}</span></td>
+          <td class="${t.amount < 0 ? "neg" : "pos"}">${formatAmount(t.amount)} kr</td>
+        </tr>
+      `).join("");
 
-      html += `</ul>`;
+      const html = `
+        <h2>Transaktioner</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Text</th>
+              <th>Kategori</th>
+              <th>Belopp</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      `;
       document.getElementById("result").innerHTML = html;
     }
 
-  </script>
+    /* ------------------------------
+       🧾 SUMMA PER KATEGORI
+    ------------------------------ */
+    function displaySummary(transactions) {
+      const perCat = {};
+      let total = 0;
 
+      for (const t of transactions) {
+        perCat[t.category] = (perCat[t.category] || 0) + t.amount;
+        total += t.amount;
+      }
+
+      const cats = Object.entries(perCat).sort((a,b) => Math.abs(b[1]) - Math.abs(a[1]));
+
+      const rows = cats.map(([cat, sum]) => `
+        <tr>
+          <td>${cat}</td>
+          <td class="${sum < 0 ? "neg" : "pos"}">${formatAmount(sum)} kr</td>
+        </tr>
+      `).join("");
+
+      const html = `
+        <h2>Sammanfattning per kategori</h2>
+        <table>
+          <thead>
+            <tr><th>Kategori</th><th>Summa</th></tr>
+          </thead>
+          <tbody>
+            ${rows || "<tr><td colspan='2'><em>Inget att visa ännu.</em></td></tr>"}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td>Totalt</td>
+              <td class="${total < 0 ? "neg" : "pos"}">${formatAmount(total)} kr</td>
+            </tr>
+          </tfoot>
+        </table>
+        <p class="muted">Obs: Negativa belopp = utgifter, positiva belopp = inkomster.</p>
+      `;
+      document.getElementById("summary").innerHTML = html;
+    }
+
+    function formatAmount(x) {
+      // Enkel svensk formatering: tusentalsmellanrum och komma
+      const s = (x || 0).toFixed(2);
+      const [intp, decp] = s.split(".");
+      const spaced = intp.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+      return spaced + "," + decp;
+    }
+  </script>
 </body>
 </html>
