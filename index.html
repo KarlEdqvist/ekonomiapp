@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Ekonomiapp</title>
+  <style>
+    body { font-family: Arial; margin: 40px; }
+    textarea { width: 100%; height: 200px; }
+    .result { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Ekonomiöversikt</h1>
+
+  <p>Klistra in ditt kontoutdrag här:</p>
+  <textarea id="rawInput"></textarea>
+  <button onclick="processData()">Bearbeta</button>
+
+  <div class="result" id="result"></div>
+
+<script>
+  // Exempel på kategoriregler
+  const rules = {
+    "ICA": "Livsmedel",
+    "Coop": "Livsmedel",
+    "Hemnet": "Boende",
+    "Uber Eats": "Restaurang",
+    "McDonalds": "Restaurang"
+  };
+
+  function processData() {
+    const raw = document.getElementById("rawInput").value;
+    const lines = raw.split("\n");
+
+    let results = [];
+
+    for (let line of lines) {
+      if (!line.trim()) continue;
+
+      // Förenklad parsing – vi kan göra den mer robust senare
+      const parts = line.split("\t");
+
+      const date = parts[0];
+      const text = parts[1] || "";
+      const amount = parseFloat(parts[2] || 0);
+
+      // Kategorisering
+      let category = "Okänd";
+      for (let key in rules) {
+        if (text.includes(key)) {
+          category = rules[key];
+        }
+      }
+
+      results.push({ date, text, amount, category });
+    }
+
+    // Visa resultat
+    let html = "<h2>Resultat</h2><ul>";
+
+    results.forEach(r => {
+      html += `<li>${r.date}: ${r.text} — ${r.amount} kr (${r.category})</li>`;
+    });
+
+    html += "</ul>";
+    document.getElementById("result").innerHTML = html;
+  }
+</script>
+
+</body>
+</html>
